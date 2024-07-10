@@ -15,7 +15,10 @@
     "react-use-clipboard": "^1.0.9",
     "web-vitals": "^2.1.4"
   },
-  "scripts": {
+"homepage": "https://Amisha-Ananda-Gowda.github.io/MiniProjectFrontEnd", // Replace with your GitHub username and repository name
+"scripts": {
+  "predeploy": "npm run build",
+  "deploy": "gh-pages -d build",
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",

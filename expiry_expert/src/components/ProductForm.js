@@ -14,6 +14,7 @@ const ProductForm = ({ categories, onSubmit, editProduct }) => {
   const [text, setText] = useState("");
   const [isOcrProcessing, setIsOcrProcessing] = useState(false);
   const [isCameraOpen, setIsCameraOpen] = useState(false);
+  const [ocrTarget, setOcrTarget] = useState(""); // State to track the target of OCR (name or date)
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
 
@@ -52,15 +53,19 @@ const ProductForm = ({ categories, onSubmit, editProduct }) => {
     const file = e.target.files[0];
     setImage(file);
     if (file) {
-      processImage(file);
+      processImage(file, ocrTarget);
     }
   };
 
-  const processImage = (image) => {
+  const processImage = (image, target) => {
     setIsOcrProcessing(true);
     Tesseract.recognize(image, "eng", { logger: (m) => console.log(m) }).then(
       ({ data: { text } }) => {
-        setProductName(text);
+        if (target === "name") {
+          setProductName(text);
+        } else if (target === "date") {
+          setExpiryDate(text);
+        }
         setIsOcrProcessing(false);
         setIsCameraOpen(false);
       }
@@ -73,22 +78,27 @@ const ProductForm = ({ categories, onSubmit, editProduct }) => {
     const context = canvas.getContext("2d");
     context.drawImage(video, 0, 0, canvas.width, canvas.height);
     canvas.toBlob((blob) => {
-      processImage(blob);
+      processImage(blob, ocrTarget);
     });
   };
 
-  const openCamera = () => {
+  const openCamera = (target) => {
     navigator.mediaDevices.getUserMedia({ video: true }).then((stream) => {
       const video = videoRef.current;
       video.srcObject = stream;
       video.play();
     });
     setIsCameraOpen(true);
+    setOcrTarget(target);
   };
 
   const handleStopListening = () => {
     SpeechRecognition.stopListening();
-    setProductName(transcript);
+    if (ocrTarget === "name") {
+      setProductName(transcript);
+    } else if (ocrTarget === "date") {
+      setExpiryDate(transcript);
+    }
     resetTranscript();
   };
 
@@ -154,8 +164,7 @@ const ProductForm = ({ categories, onSubmit, editProduct }) => {
     }
   };
 
-  // Request notification permission on component mount
-  useEffect(() => {
+  const requestNotificationPermission = () => {
     if (Notification.permission !== "granted") {
       alert("Please allow notifications to get expiry alerts.");
       Notification.requestPermission().then((permission) => {
@@ -168,7 +177,11 @@ const ProductForm = ({ categories, onSubmit, editProduct }) => {
     } else {
       console.log("Notification permission already granted.");
     }
+  };
 
+  // Request notification permission on component mount
+  useEffect(() => {
+    requestNotificationPermission();
     console.log("Performing initial expiry date check");
     checkExpiryDates(); // Initial check on mount
 
@@ -203,6 +216,9 @@ const ProductForm = ({ categories, onSubmit, editProduct }) => {
             onChange={(e) => setProductName(e.target.value)}
           />
         </label>
+        <button type="button" onClick={() => openCamera("name")}>
+          Open Camera for Product Name
+        </button>
         <label>
           Expiry Date:
           <input
@@ -211,12 +227,8 @@ const ProductForm = ({ categories, onSubmit, editProduct }) => {
             onChange={(e) => setExpiryDate(e.target.value)}
           />
         </label>
-        <label>
-          Upload Image:
-          <input type="file" accept="image/*" onChange={handleImageChange} />
-        </label>
-        <button type="button" onClick={openCamera}>
-          Open Camera
+        <button type="button" onClick={() => openCamera("date")}>
+          Open Camera for Expiry Date
         </button>
         {isCameraOpen && (
           <div className="camera-container">
@@ -232,6 +244,10 @@ const ProductForm = ({ categories, onSubmit, editProduct }) => {
             />
           </div>
         )}
+        <label>
+          Upload Image:
+          <input type="file" accept="image/*" onChange={handleImageChange} />
+        </label>
         <button type="button" onClick={startListening}>
           Start Listening
         </button>
